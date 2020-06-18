@@ -9,6 +9,8 @@ if ( ! class_exists( 'BaseTestSuite' ) ) {
             parent::__construct();
 
             $this->addFile( dirname( __FILE__ ) . '/unit/test-base-module.php' );
+            $this->post = new WP_MockTest();
+
         }
     }
 }

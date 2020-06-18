@@ -37,23 +37,64 @@ public function init() {
  */
 public function register_hook_callbacks() {
    add_action( 'admin_menu', __CLASS__ . '::register_settings_pages' );
-   add_action( 'admin_init', array( $this, 'register_settings' ));
-   add_action( 'init', array( $this, 'init' ));
+   add_action( 'init', [$this, 'init']);
+   add_action( 'admin_init', [$this, 'register_settings']);
+   //add_action( 'admin_post', [$this, 'process_form_data'] );
     
     add_filter(
         'plugin_action_links_' . plugin_basename( dirname( __DIR__ ) ) . '/bootstrap.php',
 	__CLASS__ . '::add_plugin_action_links'
     );
+    
+    if(isset($_POST)){
+       // $this->process_form_data();
+        //$base_settings = get_option('base_settings');    
+        $this->settings = self::validate_settings( $_POST );
+        update_option( 'base_settings', $this->settings );
+    }
 }
 
 /**
- * Setter for variables
+ * Update form variables
  *
- * @param string $variable
- * @param array  $value 
+ * 
  **/
-public function __set( $variable, $value ) {
-    if ( $variable != 'settings' ) {
+function process_form_data() {  
+    if ( ! empty( $_POST['_wp_http_referer'] ) ) {
+        $form_url = esc_url_raw( wp_unslash( $_POST['_wp_http_referer'] ) );
+    } else {
+        $form_url = home_url( '/' );
+    }
+    if ( isset( $_POST['endpoint'] )
+     //   && wp_verify_nonce(
+     //       sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ),
+     //       'base_settings'
+     //   )
+        ) {
+
+        $base_settings = get_option('base_settings');    
+        $this->settings = self::validate_settings( $base_settings );
+        update_option( 'base_settings', $this->settings );
+
+     /*   wp_safe_redirect(
+            esc_url_raw(
+                add_query_arg( 'form_status', 'success', $form_url )
+            )
+        );
+        exit();*/
+    } else {
+     /*   wp_safe_redirect(
+            esc_url_raw(
+                add_query_arg( 'form_status', 'error', $form_url )
+            )
+        );
+       exit(); */
+    }
+}
+
+
+public function __set( $variable, $value ) { 
+    if ( $variable != 'base_settings' ) {
         return;
     }
     $this->settings = self::validate_settings( $value );
@@ -68,7 +109,7 @@ public function __set( $variable, $value ) {
 protected static function get_default_settings() {
     return array(
         'version' => '1.0',
-        'endpoint' => $endpoint
+        'endpoint' => 'http://',
     );
 }
 
@@ -80,7 +121,7 @@ protected static function get_default_settings() {
 protected static function get_settings() {
     $settings = shortcode_atts(
         self::$default_settings,
-	get_option( 'base_settings', array() )
+	get_option( 'base_settings' )
     );
     return $settings;
 }
@@ -92,7 +133,7 @@ protected static function get_settings() {
  * @return array
  */
 public static function add_plugin_action_links( $links ) {
-    array_unshift( $links, '<a href="options-general.php?page=' . 'base_sample">Settings</a>' );
+    array_unshift( $links, '<a href="options-general.php?page=' . 'base_settings">Settings</a>' );
     return $links;
 }
 
@@ -105,7 +146,7 @@ public static function register_settings_pages() {
 	BASE_NAME . ' Settings',
 	BASE_NAME,
         self::REQUIRED_CAPABILITY,    
-	'base_sample',
+	'base_settings',
 	__CLASS__ . '::markup_settings_page'
     );
 }
@@ -159,11 +200,10 @@ public function register_settings() {
  *
  */
 function markup_endpoint() {
-	$options = get_option('endpoint');
-	echo "<input id='plugin_text_field' name='endpoint' size='40' type='text' value='{$options['endpoint']}' />";
+	$options = get_option('base_settings');
+        var_dump($options);
+	echo '<input id="endpoint_text_field" name="endpoint" size="48" type="text" value="'.esc_url($options['endpoint']) .'" />';
 }
-
-
 
 /**
  * Display introduction text to the Settings page
@@ -182,10 +222,14 @@ public static function markup_section_headers( $section ) {
  * @param array $new_settings
  * @return array
  */
-public function validate_settings( $new_settings ) {
+public function validate_settings( $new_settings ) { 
     $new_settings = shortcode_atts( $this->settings, $new_settings );
     if ( ! is_string( $new_settings['version'] ) ) {
         $new_settings['version'] = Base_Plugin::VERSION;
+    }
+    if (filter_var($new_settings['endpoint'], FILTER_VALIDATE_URL) == false) {
+        //add_notice( 'Parameter Endpoint must be a valid URL', 'error' );
+	$new_settings['endpoint'] = self::$default_settings['endpoint'];
     }
  
     return $new_settings;
