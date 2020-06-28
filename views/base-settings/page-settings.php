@@ -1,7 +1,6 @@
 <div class="wrap">
     <h1><?php esc_html_e( BASE_NAME ); ?> Settings</h1>
-
-    <form method="post" action="options.php">
+    <form method="post" >
     <?php settings_fields( 'base_settings' ); ?>
     <?php do_settings_sections( 'base_settings' ); ?>
     <p class="submit">

@@ -12,8 +12,8 @@ const VERSION    = '1.0';
 const PREFIX     = 'base_';
 const DEBUG_MODE = false;
 
-protected static $readable_properties  = array(); 
-protected static $writeable_properties = array();
+protected static $readable_properties  = []; 
+protected static $writeable_properties = [];
 protected $modules;
 
 /**
@@ -21,18 +21,16 @@ protected $modules;
  *
  */
 protected function __construct() {
-    $this->modules = array(
-        'Base_Settings' => Base_Settings::get_instance(),
-    );
-    
-    $this->register_hook_callbacks();
+    $this->modules = ['Base_Settings' => Base_Settings::get_instance() ];
 }
 
 /**
  * Initializes variables
  *
  */
-public function init() {}
+public function init() {
+    $this->register_hook_callbacks();
+}
 
 /**
  * Register callbacks for actions and filters
@@ -41,7 +39,7 @@ public function init() {}
 public function register_hook_callbacks() {
     add_action( 'wp_enqueue_scripts',    __CLASS__ . '::load_resources' );
     add_action( 'admin_enqueue_scripts', __CLASS__ . '::load_resources' );
-    add_action( 'init',                  array( $this, 'init' ) );
+    add_action( 'init', [$this, 'init'] );
 }
 
 /**
@@ -49,10 +47,11 @@ public function register_hook_callbacks() {
  *
  */
 public static function load_resources() {
+    
     wp_register_script(
         self::PREFIX . 'javascript',
 	plugins_url( 'js/javascript.js', dirname( __FILE__ ) ),
-	array( 'jquery' ),
+	['jquery'],
 	self::VERSION,
 	true
     );
@@ -60,7 +59,7 @@ public static function load_resources() {
     wp_register_style(
         self::PREFIX . 'style',
 	plugins_url( 'css/style.css', dirname( __FILE__ ) ),
-	array(),
+	[],
 	self::VERSION,
 	'all'
     );
@@ -73,7 +72,7 @@ public static function load_resources() {
  */
 public function activate( $network_wide ) {
     if ( $network_wide && is_multisite() ) {
-        $sites = wp_get_sites( array( 'limit' => false ) );
+        $sites = wp_get_sites( ['limit' => false] );
 
 	foreach ( $sites as $site ) {
             switch_to_blog( $site['blog_id'] );

@@ -1,4 +1,5 @@
 <?php
+
 if ( ! class_exists( 'Base_Module' ) ) {
 
 /**
@@ -6,12 +7,7 @@ if ( ! class_exists( 'Base_Module' ) ) {
  */
 abstract class Base_Module {
     
-private static $instances = array();
-
-/**
- * Constructor
- */
-abstract protected function __construct();
+private static $instances = [];
 
 /**
  * Initializes variables
@@ -78,7 +74,7 @@ public function __set( $variable, $value ) {
  * @param  string $require
  * @return string
  */
-protected static function render_template( $default_template_path = false, $variables = array(), $require = 'once' ) {
+protected static function render_template( $default_template_path = false, $variables = [], $require = 'once' ) {
     $template_path = locate_template( basename( $default_template_path ) );
     if ( ! $template_path ) {
 	$template_path = dirname( __DIR__ ) . '/views/' . $default_template_path;

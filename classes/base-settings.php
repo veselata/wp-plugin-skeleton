@@ -9,10 +9,11 @@ class Base_Settings extends Base_Module {
     
 const REQUIRED_CAPABILITY = 'administrator';
     
-protected $settings;
-protected static $default_settings;
-protected static $readable_properties  = array( 'settings' );
-protected static $writeable_properties = array( 'settings' );
+protected $settings = [
+    'endpoint' => 'http://',
+];
+protected static $readable_properties  = ['settings'];
+protected static $writeable_properties = ['settings'];
 
 /**
  * Constructor
@@ -26,9 +27,10 @@ protected function __construct() {
  * Initializes variables
  *
  */
-public function init() {
-    self::$default_settings = self::get_default_settings();
-    $this->settings = self::get_settings();
+public function init() {  
+    if(filter_input_array(INPUT_POST)){
+       $this->process_form_data();     
+    }
 }
 
 /**
@@ -36,9 +38,9 @@ public function init() {
  *
  */
 public function register_hook_callbacks() {
-   add_action( 'admin_menu', __CLASS__ . '::register_settings_pages' );
-   add_action( 'admin_init', array( $this, 'register_settings' ));
-   add_action( 'init', array( $this, 'init' ));
+    add_action( 'admin_menu', __CLASS__ . '::register_settings_pages' );
+    add_action( 'init', [$this, 'init']);
+    add_action( 'admin_init', [$this, 'register_settings']);
     
     add_filter(
         'plugin_action_links_' . plugin_basename( dirname( __DIR__ ) ) . '/bootstrap.php',
@@ -47,42 +49,25 @@ public function register_hook_callbacks() {
 }
 
 /**
- * Setter for variables
+ * Update form variables
  *
- * @param string $variable
- * @param array  $value 
+ * 
  **/
-public function __set( $variable, $value ) {
-    if ( $variable != 'settings' ) {
-        return;
+function process_form_data() {  
+    $postData = filter_input_array(INPUT_POST);
+    
+    if ( ! empty( $postData['_wp_http_referer'])) {
+        $form_url = esc_url_raw( wp_unslash( $postData['_wp_http_referer'] ) );
+    } else {
+        $form_url = home_url( '/' );
     }
-    $this->settings = self::validate_settings( $value );
-    update_option( 'base_settings', $this->settings );
-}
-
-/**
- * Establishes initial values for all settings
- *
- * @return array
- */
-protected static function get_default_settings() {
-    return array(
-        'version' => '1.0',
-        'endpoint' => $endpoint
-    );
-}
-
-/**
- * Retrieves all of the settings from the database
- *
- * @return array
- */
-protected static function get_settings() {
-    $settings = shortcode_atts(
-        self::$default_settings,
-	get_option( 'base_settings', array() )
-    );
-    return $settings;
+    if ( isset( $postData['endpoint'])) {
+     
+        if(update_option( 'base_settings', ['endpoint' => $postData['endpoint']] )) {
+            echo "<div class='updated'><p>Your changes have been saved successfully</p></div>";
+            $this->settings = get_option( 'base_settings');
+        }
+    } 
 }
 
 /**
@@ -92,7 +77,7 @@ protected static function get_settings() {
  * @return array
  */
 public static function add_plugin_action_links( $links ) {
-    array_unshift( $links, '<a href="options-general.php?page=' . 'base_sample">Settings</a>' );
+    array_unshift( $links, '<a href="options-general.php?page=' . 'base_settings">Settings</a>' );
     return $links;
 }
 
@@ -105,7 +90,7 @@ public static function register_settings_pages() {
 	BASE_NAME . ' Settings',
 	BASE_NAME,
         self::REQUIRED_CAPABILITY,    
-	'base_sample',
+	'base_settings',
 	__CLASS__ . '::markup_settings_page'
     );
 }
@@ -127,9 +112,12 @@ public static function markup_settings_page() {
  *
  */
 public function register_settings() {
-    /*
-     * Basic Section
-     */
+    register_setting(
+        'base_settings',
+        'base_settings',
+        [$this, 'sanitize_settings']
+    ); 
+    
     add_settings_section(
         'base_section-basic',
         'Basic Settings',
@@ -140,30 +128,21 @@ public function register_settings() {
     add_settings_field(
         'endpoint',
         'Endpoint',
-        array( $this, 'markup_endpoint' ),
+        [$this, 'endpoint_callback'],
         'base_settings',
         'base_section-basic',
-        array( 'label_for' => 'endpoint' )
+        ['label_for' => 'endpoint']
     );
-
-    // The settings container
-    register_setting(
-        'base_settings',
-        'base_settings',
-        array( $this, 'validate_settings' )
-    ); 
 }
 
 /**
  * Display endpoint text field
  *
  */
-function markup_endpoint() {
-	$options = get_option('endpoint');
-	echo "<input id='plugin_text_field' name='endpoint' size='40' type='text' value='{$options['endpoint']}' />";
+function endpoint_callback() {
+    $endpoint = (get_option('base_settings') ? get_option('base_settings')['endpoint'] : $this->settings['endpoint']);
+    echo '<input id="endpoint_text_field" name="endpoint" size="48" type="text" value="'.esc_url($endpoint) .'" />';
 }
-
-
 
 /**
  * Display introduction text to the Settings page
@@ -172,7 +151,7 @@ function markup_endpoint() {
  * @param array $section
  */
 public static function markup_section_headers( $section ) {
-    echo self::render_template( 'base-settings/page-settings-headers.php', array( 'section' => $section ), 'always' );
+    echo self::render_template( 'base-settings/page-settings-headers.php', ['section' => $section], 'always' );
 }
 
 /**
@@ -182,12 +161,13 @@ public static function markup_section_headers( $section ) {
  * @param array $new_settings
  * @return array
  */
-public function validate_settings( $new_settings ) {
-    $new_settings = shortcode_atts( $this->settings, $new_settings );
-    if ( ! is_string( $new_settings['version'] ) ) {
-        $new_settings['version'] = Base_Plugin::VERSION;
+public function sanitize_settings( $settings ) { 
+    $new_settings = shortcode_atts( $this->settings, $settings );
+
+    if (!filter_var($new_settings['endpoint'], FILTER_VALIDATE_URL)) {
+	$new_settings['endpoint'] = self::$default_settings['endpoint'];       
     }
- 
+    
     return $new_settings;
 }
 

@@ -16,6 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'BASE_NAME', 'Plugin Skeleton' );
 define( 'BASE_REQUIRED_PHP_VERSION', '7.3' );   
 define( 'BASE_REQUIRED_WP_VERSION',  '5.4' );
+define( 'BASE_PLUGIN_DIR', plugin_dir_path(  __FILE__  ) );
+
 
 /**
  * Checks if the system requirements are met
@@ -48,11 +50,20 @@ if ( base_requirements_met() ) {
     require_once( __DIR__ . '/classes/base-module.php' );
     require_once( __DIR__ . '/classes/base-plugin.php' );
     require_once( __DIR__ . '/classes/base-settings.php' );
+    require_once( __DIR__ . '/classes/base-shortcode.php' );
+    require_once( __DIR__ . '/classes/base-widget.php' );
 
     if ( class_exists( 'Base_Plugin' ) ) {
-	register_activation_hook(  __FILE__, array( Base_Plugin::get_instance(), 'activate' ) );
-	register_deactivation_hook( __FILE__, array( Base_Plugin::get_instance(), 'deactivate' ) );
+	register_activation_hook(  __FILE__, [Base_Plugin::get_instance(), 'activate'] );
+	register_deactivation_hook( __FILE__, [Base_Plugin::get_instance(), 'deactivate'] );
+        
+        add_action('wp_enqueue_scripts', [Base_Plugin::get_instance(), 'init']);
     }
+    if(class_exists('Base_Shortcode')) {
+        add_shortcode( 'display-base', ['Base_Shortcode', 'display_base_shortcode'] );
+        add_action( 'widgets_init', ['Base_Shortcode', 'init'] );
+    }
+    
 } else {
     add_action( 'admin_notices', 'base_requirements_error' );
 }
